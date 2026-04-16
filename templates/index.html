@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>استخراج بيانات الفواتير v5</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6fa;--surface:#fff;--surface-off:#f0f2f8;--dyn:#e4e7f2;
+  --border:#d8dce8;--div:#e8eaf2;--text:#1a1d2e;--muted:#6b6f85;--faint:#b0b3c4;
+  --primary:#0057D9;--ph:#003fa8;--phl:#dce8ff;
+  --success:#1a7f37;--shl:#d4f0dd;--warn:#b45309;--whl:#fef3cd;
+  --err:#c0392b;--ehl:#fde8e8;--teal:#0d7377;
+  --zatca:#1b5e20;--zatca-hl:#c8e6c9;--ocr:#e65100;--ocr-hl:#fff3e0;
+  --font:'IBM Plex Sans Arabic',sans-serif;
+  --sh1:0 1px 3px #0001;--sh2:0 4px 16px #0002;--sh3:0 12px 40px #0003;
+  --tr:200ms cubic-bezier(.16,1,.3,1);--r:10px;
+}
+[data-theme=dark]{
+  --bg:#0f1117;--surface:#181b24;--surface-off:#1e2130;--dyn:#252a3a;
+  --border:#2e3348;--div:#252a3a;--text:#e2e4f0;--muted:#7a7f9a;--faint:#404460;
+  --primary:#4d8ef5;--ph:#2d6ee0;--phl:#1a2a4a;
+  --success:#4caf7d;--shl:#0d2e1c;--warn:#e6a817;--whl:#2d2200;--err:#e05252;--ehl:#2d0f0f;
+  --zatca:#4caf7d;--zatca-hl:#0d2e1c;--ocr:#ffb74d;--ocr-hl:#2d1800;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased}
+body{min-height:100dvh;font-family:var(--font);color:var(--text);background:var(--bg);direction:rtl}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit}
+input,select{font:inherit}
+.hidden{display:none!important}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:.65rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--sh1)}
+.brand{display:flex;align-items:center;gap:.6rem}
+.brand-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--primary),var(--teal));border-radius:8px;display:flex;align-items:center;justify-content:center}
+.brand-logo svg{color:#fff}
+.brand-name{font-size:.9rem;font-weight:700}
+.brand-sub{font-size:.6rem;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:.375rem}
+
+.layout{display:grid;grid-template-columns:275px 1fr;min-height:calc(100dvh - 53px)}
+.sidebar{background:var(--surface);border-left:1px solid var(--border);padding:.75rem;overflow-y:auto;display:flex;flex-direction:column;gap:.625rem}
+.main-pane{padding:.75rem;overflow-y:auto;display:flex;flex-direction:column;gap:.625rem}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh1);overflow:hidden}
+.card-header{padding:.55rem .8rem;border-bottom:1px solid var(--div);display:flex;align-items:center;justify-content:space-between;gap:.375rem}
+.card-title{font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.35rem}
+
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.375rem .75rem;border-radius:6px;font-size:.76rem;font-weight:600;min-height:30px;transition:all var(--tr);cursor:pointer;border:none;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--ph)}
+.btn-secondary{background:var(--surface-off);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--dyn)}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--err);color:#fff}
+.btn-teal{background:var(--teal);color:#fff}
+.btn-sm{padding:.2rem .5rem;min-height:22px;font-size:.65rem;border-radius:5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-row{display:flex;flex-wrap:wrap;gap:.3rem}
+.btn-icon{padding:.375rem;border-radius:6px;display:flex;align-items:center;min-width:32px;min-height:32px;justify-content:center;color:var(--muted);transition:background var(--tr)}
+.btn-icon:hover{background:var(--surface-off);color:var(--text)}
+
+.field{margin-bottom:.45rem}
+.field label{display:block;font-size:.65rem;font-weight:600;color:var(--muted);margin-bottom:.18rem}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.33rem .55rem;font-size:.74rem;color:var(--text)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);outline:none}
+.field textarea{resize:vertical;min-height:80px;font-size:.68rem;font-family:monospace;direction:ltr;text-align:left}
+
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:1.2rem .875rem;text-align:center;cursor:pointer;transition:border-color var(--tr),background var(--tr)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--primary);background:var(--phl)}
+.upload-zone h3{font-size:.78rem;font-weight:600;margin-bottom:.2rem}
+.upload-zone p{font-size:.65rem;color:var(--muted);margin-bottom:.65rem}
+
+.pipeline{display:flex;align-items:center;gap:.2rem;flex-wrap:wrap;padding:.4rem .55rem;background:var(--surface-off);border-radius:8px;border:1px solid var(--div);font-size:.62rem;margin-top:.45rem}
+.pipe-step{padding:.15rem .4rem;border-radius:20px;font-weight:600}
+.ps-qr{background:var(--zatca-hl);color:var(--zatca)}
+.ps-text{background:var(--phl);color:var(--primary)}
+.ps-ocr{background:var(--ocr-hl);color:var(--ocr)}
+.pipe-arrow{color:var(--faint)}
+
+.q-list{list-style:none;display:flex;flex-direction:column;gap:.22rem}
+.q-item{display:grid;grid-template-columns:22px 1fr auto auto;align-items:center;gap:.4rem;padding:.38rem .5rem;background:var(--surface-off);border-radius:6px;border:1px solid var(--div);font-size:.65rem}
+.q-item.done{border-color:var(--success);background:var(--shl)}
+.q-item.error{border-color:var(--err);background:var(--ehl)}
+.q-item.processing{border-color:var(--primary);background:var(--phl)}
+.q-item.archived{opacity:.5}
+.q-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-meta{font-size:.57rem;color:var(--muted)}
+.status-pill{padding:1px .33rem;border-radius:20px;font-size:.56rem;font-weight:700}
+.sp-pending{background:var(--div);color:var(--muted)}
+.sp-processing{background:var(--phl);color:var(--primary)}
+.sp-done{background:var(--shl);color:var(--success)}
+.sp-error{background:var(--ehl);color:var(--err)}
+.sp-archived{background:var(--div);color:var(--faint)}
+.del-btn{padding:2px;border-radius:4px;color:var(--err);opacity:.4;transition:opacity var(--tr)}
+.del-btn:hover{opacity:1}
+
+.prog-wrap{height:4px;background:var(--div);border-radius:20px;overflow:hidden;margin:.3rem 0}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--primary),var(--teal));border-radius:20px;transition:width .35s}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .7rem;box-shadow:var(--sh1)}
+.stat-label{font-size:.56rem;font-weight:700;color:var(--muted);margin-bottom:.12rem;text-transform:uppercase;letter-spacing:.04em}
+.stat-value{font-size:1.05rem;font-weight:800}
+.stat-sub{font-size:.56rem;color:var(--faint);margin-top:.08rem}
+.stat-box.accent{background:linear-gradient(135deg,var(--primary),var(--teal));border-color:transparent}
+.stat-box.accent *{color:#fff!important}
+.src-pills{display:flex;gap:.25rem;margin-top:.25rem;flex-wrap:wrap}
+.src-pill{font-size:.56rem;font-weight:700;padding:1px .3rem;border-radius:20px}
+
+table{width:100%;border-collapse:collapse;font-size:.74rem}
+thead tr{background:linear-gradient(135deg,#1a2a5e,#0d7377);position:sticky;top:0;z-index:5}
+th{padding:.4rem .65rem;text-align:right;font-size:.6rem;font-weight:700;color:#fff;white-space:nowrap}
+td{padding:.35rem .65rem;border-bottom:1px solid var(--div);white-space:nowrap;vertical-align:middle}
+tbody tr:hover{background:var(--surface-off)}
+tbody tr:nth-child(even){background:#f8f9ff}
+[data-theme=dark] tbody tr:nth-child(even){background:#1a1e2a}
+tbody tr.from-qr{border-right:3px solid var(--zatca)}
+tbody tr.from-ocr{border-right:3px solid var(--ocr)}
+.cell-edit{min-width:70px;outline:none;border-bottom:1px dashed transparent;cursor:text;padding:1px 2px;border-radius:3px}
+.cell-edit:focus{border-bottom-color:var(--primary);background:var(--phl)}
+.num-cell{font-weight:600;color:var(--primary);text-align:left;direction:ltr}
+.row-n{color:var(--faint);font-size:.6rem}
+.badge{display:inline-flex;align-items:center;padding:1px .35rem;border-radius:20px;font-size:.6rem;font-weight:700}
+.b-ok{background:var(--shl);color:var(--success)}
+.b-warn{background:var(--whl);color:var(--warn)}
+.b-qr{background:var(--zatca-hl);color:var(--zatca);border:1px solid var(--zatca)}
+.b-ocr{background:var(--ocr-hl);color:var(--ocr);border:1px solid var(--ocr)}
+.tbl-wrap{overflow-x:auto}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem;color:var(--muted);text-align:center;gap:.45rem}
+.empty-state h3{font-size:.8rem;font-weight:600;color:var(--text)}
+.spin{animation:spin 1.2s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast-wrap{position:fixed;bottom:1rem;right:1rem;z-index:999;display:flex;flex-direction:column-reverse;gap:.3rem;max-width:290px}
+.toast{padding:.5rem .75rem;border-radius:8px;font-size:.74rem;display:flex;align-items:flex-start;gap:.375rem;box-shadow:var(--sh2);animation:slideIn .22s ease}
+.t-info{background:var(--phl);color:var(--primary);border:1px solid var(--primary)}
+.t-success{background:var(--shl);color:var(--success);border:1px solid var(--success)}
+.t-warn{background:var(--whl);color:var(--warn);border:1px solid var(--warn)}
+.t-err{background:var(--ehl);color:var(--err);border:1px solid var(--err)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.overlay{position:fixed;inset:0;background:#0008;z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border-radius:13px;padding:1.125rem;width:100%;max-width:500px;box-shadow:var(--sh3);animation:popIn .2s ease;max-height:90dvh;overflow-y:auto}
+.modal h3{font-size:.875rem;font-weight:700;margin-bottom:.7rem}
+@keyframes popIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.tip-box{padding:.45rem .65rem;border-radius:7px;font-size:.68rem;line-height:1.55;border:1px solid;margin-bottom:.45rem}
+.tip-info{background:var(--phl);color:var(--primary);border-color:var(--primary)}
+.tip-warn{background:var(--whl);color:var(--warn);border-color:var(--warn)}
+.step{display:flex;gap:.4rem;align-items:flex-start;padding:.4rem .5rem;background:var(--surface-off);border-radius:6px;font-size:.74rem;margin-bottom:.28rem}
+.step-n{background:var(--primary);color:#fff;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;margin-top:1px}
+.modal-btns{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem}
+.kw-section{margin-bottom:.55rem}
+.kw-section-title{font-size:.66rem;font-weight:700;color:var(--primary);margin-bottom:.27rem}
+.kw-tags{display:flex;flex-wrap:wrap;gap:.22rem;margin-bottom:.27rem;min-height:18px}
+.kw-tag{display:inline-flex;align-items:center;gap:.2rem;background:var(--phl);color:var(--primary);border:1px solid var(--primary);border-radius:20px;padding:1px .42rem;font-size:.65rem;font-weight:600}
+.kw-tag button{color:var(--err);padding:0 1px}
+.kw-add-row{display:flex;gap:.22rem}
+.kw-add-row input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:.25rem .45rem;font-size:.68rem;color:var(--text)}
+@media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{border-left:none;border-bottom:1px solid var(--border);order:-1}.stats-row{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+    </div>
+    <div>
+      <div class="brand-name">استخراج بيانات الفواتير</div>
+      <div class="brand-sub">Flask · QR · نص · OCR → Google Sheets</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-icon" id="theme-btn" title="تبديل المظهر">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="showSheets()">📊 Sheets</button>
+    <button class="btn btn-secondary btn-sm" onclick="showKw()">🔑 كلمات</button>
+  </div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">📤 رفع الفواتير</div></div>
+    <div style="padding:.6rem">
+      <div class="upload-zone" id="dz">
+        <div style="display:flex;justify-content:center;margin-bottom:.4rem;color:var(--primary)">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        </div>
+        <h3>اسحب ملفات PDF هنا</h3>
+        <p>جميع أنواع الفواتير مدعومة</p>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="event.stopPropagation();document.getElementById('fi').click()">اختيار ملفات</button>
+        <input type="file" id="fi" accept=".pdf" multiple class="hidden">
+      </div>
+      <div class="pipeline">
+        <span class="pipe-step ps-qr">📱 QR ZATCA</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step ps-text">📄 نص</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step ps-ocr">🖨 OCR</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title" style="color:var(--ocr)">🖨 OCR</div></div>
+    <div style="padding:.5rem .65rem">
+      <div class="field">
+        <label>حد اكتشاف السكانر (حرف)</label>
+        <select id="ocr-threshold">
+          <option value="0">0 — أي PDF بدون نص</option>
+          <option value="50" selected>50 — الافتراضي</option>
+          <option value="200">200 — نص قليل جداً</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="flex:1">
+    <div class="card-header">
+      <div class="card-title">📋 الملفات <span id="q-count" class="badge b-warn hidden"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-sm btn-secondary" onclick="archiveDone()">📁</button>
+        <button class="btn btn-sm btn-danger" onclick="clearPending()">🗑</button>
+      </div>
+    </div>
+    <div style="padding:.4rem .5rem" id="queue-wrap">
+      <div class="empty-state" style="padding:1rem"><p style="font-size:.7rem">لم يتم رفع ملفات</p></div>
+    </div>
+    <div id="prog-wrap" class="hidden" style="padding:0 .6rem .4rem">
+      <div class="prog-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+      <div id="prog-label" style="font-size:.6rem;color:var(--muted);text-align:center"></div>
+    </div>
+    <div style="padding:.4rem .5rem;border-top:1px solid var(--div)">
+      <button class="btn btn-teal" style="width:100%;justify-content:center" id="btn-extract" onclick="processAll()" disabled>▶ استخراج البيانات</button>
+    </div>
+  </div>
+
+</aside>
+
+<section class="main-pane">
+
+  <div class="stats-row">
+    <div class="stat-box accent">
+      <div class="stat-label">الفواتير</div>
+      <div class="stat-value" id="st-total">0</div>
+      <div class="src-pills">
+        <span class="src-pill" style="background:var(--zatca-hl);color:var(--zatca)">QR: <span id="st-qr">0</span></span>
+        <span class="src-pill" style="background:#dce8ff;color:#0057D9">نص: <span id="st-txt">0</span></span>
+        <span class="src-pill" style="background:var(--ocr-hl);color:var(--ocr)">OCR: <span id="st-ocr">0</span></span>
+      </div>
+    </div>
+    <div class="stat-box"><div class="stat-label">قبل الضريبة</div><div class="stat-value" id="st-sub" style="font-size:.9rem;color:var(--primary)">0.00</div><div class="stat-sub">ريال</div></div>
+    <div class="stat-box"><div class="stat-label">الضريبة</div><div class="stat-value" id="st-vat" style="font-size:.9rem;color:var(--warn)">0.00</div><div class="stat-sub">ريال</div></div>
+    <div class="stat-box"><div class="stat-label">الإجمالي</div><div class="stat-value" id="st-tot" style="font-size:.9rem;color:var(--success)">0.00</div><div class="stat-sub">ريال</div></div>
+  </div>
+
+  <div class="card" style="flex:1">
+    <div class="card-header">
+      <div class="card-title">📊 البيانات <span class="badge b-ok hidden" id="result-badge"></span></div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-sheets" onclick="sendToSheets()" disabled>↑ Sheets</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">↓ CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearResults()">🗑</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <div class="empty-state" id="empty-state">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <h3>لا توجد نتائج</h3><p>ارفع ملفات PDF واضغط استخراج</p>
+      </div>
+      <table id="result-table" class="hidden">
+        <thead><tr>
+          <th>#</th><th>المصدر</th><th>رقم الفاتورة</th><th>اسم المورد</th><th>الرقم الضريبي</th>
+          <th>التاريخ</th><th>البيان</th><th>قبل الضريبة</th><th>الضريبة</th><th>بعد الضريبة</th>
+          <th>العملة</th><th>الحالة</th><th></th>
+        </tr></thead>
+        <tbody id="result-tbody"></tbody>
+        <tfoot id="result-tfoot" style="background:var(--surface-off);font-weight:700"></tfoot>
+      </table>
+    </div>
+    <div style="padding:.32rem .75rem;font-size:.62rem;color:var(--muted);border-top:1px solid var(--div);display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+      <span class="badge b-qr">QR</span> ZATCA &nbsp;
+      <span class="badge" style="background:var(--phl);color:var(--primary);font-size:.6rem">نص</span> PDF &nbsp;
+      <span class="badge b-ocr">OCR</span> سكانر &nbsp;·&nbsp; 💡 اضغط أي خلية لتعديلها
+    </div>
+  </div>
+
+</section>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Sheets Modal -->
+<div class="overlay hidden" id="sheets-modal">
+  <div class="modal">
+    <h3>📊 إعداد Google Sheets</h3>
+    <div class="tip-info tip-box">
+      يستخدم هذا النظام <strong>Service Account</strong> للكتابة في Sheets.<br>
+      اتبع الخطوات مرة واحدة فقط.
+    </div>
+    <div class="step"><div class="step-n">1</div>افتح <a href="https://console.cloud.google.com" target="_blank" style="color:var(--primary)">Google Cloud Console</a> وأنشئ مشروع جديد</div>
+    <div class="step"><div class="step-n">2</div>فعّل <strong>Google Sheets API</strong> من APIs & Services</div>
+    <div class="step"><div class="step-n">3</div>أنشئ Service Account ← IAM & Admin ← Service Accounts ← Create</div>
+    <div class="step"><div class="step-n">4</div>من Service Account ← Keys ← Add Key ← JSON ← حمّل الملف</div>
+    <div class="step"><div class="step-n">5</div>افتح ملف الـ JSON وانسخ محتواه في الخانة أدناه</div>
+    <div class="step"><div class="step-n">6</div>شارك ملف Sheets مع email الـ Service Account بصلاحية <strong>Editor</strong></div>
+    <div class="field" style="margin-top:.625rem">
+      <label>Sheet ID (من رابط الملف)</label>
+      <input type="text" id="sheet-id" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+    </div>
+    <div class="field"><label>اسم الورقة</label><input type="text" id="sheet-name" value="فواتير الموردين"></div>
+    <div class="field"><label>Service Account JSON</label><textarea id="sa-json" placeholder='{"type":"service_account","project_id":"..."}'></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="saveSheets()">حفظ</button>
+      <button class="btn btn-secondary" onclick="closeSheets()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Keywords Modal -->
+<div class="overlay hidden" id="kw-modal">
+  <div class="modal">
+    <h3>🔑 كلمات البحث</h3>
+    <div class="tip-info tip-box">تُستخدم للفواتير النصية والـ OCR فقط — QR يُقرأ تلقائياً.</div>
+    <div id="kw-sections"></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="saveKw()">💾 حفظ</button>
+      <button class="btn btn-secondary" onclick="resetKw()">↺ افتراضي</button>
+      <button class="btn btn-secondary" onclick="closeKw()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Theme ─────────────────────────────────────────────────────────
+(()=>{
+  const btn=document.getElementById('theme-btn'),html=document.documentElement;
+  let m=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  html.setAttribute('data-theme',m);
+  btn.addEventListener('click',()=>{m=m==='dark'?'light':'dark';html.setAttribute('data-theme',m);localStorage.setItem('theme',m)});
+})();
+
+// ── State ─────────────────────────────────────────────────────────
+let queue=[], results=[];
+let sheetId=localStorage.getItem('sheetId')||'';
+let sheetName=localStorage.getItem('sheetName')||'فواتير الموردين';
+let saJson=localStorage.getItem('saJson')||'';
+if(sheetId) document.getElementById('sheet-id').value=sheetId;
+if(sheetName) document.getElementById('sheet-name').value=sheetName;
+if(saJson) document.getElementById('sa-json').value=saJson;
+
+const DEFAULT_KW={
+  invoice_num:{label:'رقم الفاتورة',words:['رقم الفاتورة','فاتورة رقم','Invoice No','INV']},
+  supplier:{label:'اسم المورد',words:['المورد','Supplier','Vendor','Issued By','البائع']},
+  vat:{label:'الرقم الضريبي',words:['رقم ضريبي','VAT No','TRN','Tax No']},
+  date:{label:'التاريخ',words:['التاريخ','تاريخ الفاتورة','Invoice Date','Date']},
+  desc:{label:'البيان',words:['البيان','الوصف','Description','Service','Item']},
+  subtotal:{label:'قبل الضريبة',words:['المجموع قبل','الإجمالي ريال','المجموع','Subtotal','Net Amount','قبل الضريبة','صافي القيمة','وعاء الضريبة']},
+  vat_amt:{label:'مبلغ الضريبة',words:['مبلغ الضريبة','VAT Amount','Tax Amount','الضريبة']},
+  total:{label:'بعد الضريبة',words:['الإجمالي بعد','إجمالي شامل','Grand Total','Total Amount','after VAT']},
+};
+let KW=JSON.parse(localStorage.getItem('kw')||'null')||JSON.parse(JSON.stringify(DEFAULT_KW));
+
+// ── Upload ────────────────────────────────────────────────────────
+const dz=document.getElementById('dz'),fi=document.getElementById('fi');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');addFiles(e.dataTransfer.files)});
+dz.addEventListener('click',()=>fi.click());
+fi.addEventListener('change',e=>addFiles(e.target.files));
+
+function addFiles(files){
+  let n=0;
+  for(const f of files){
+    if(!f.name.toLowerCase().endsWith('.pdf')){toast(f.name+' ليس PDF','err');continue}
+    if(queue.find(q=>q.name===f.name&&q.status!=='archived')){toast(f.name+' موجود','warn');continue}
+    queue.push({id:Math.random().toString(36).slice(2),file:f,name:f.name,size:f.size,status:'pending'});n++;
+  }
+  if(n)renderQueue();fi.value='';
+}
+function fmtSz(b){return b>1e6?(b/1e6).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB'}
+function renderQueue(){
+  const wrap=document.getElementById('queue-wrap'),cnt=document.getElementById('q-count'),btn=document.getElementById('btn-extract');
+  const pending=queue.filter(q=>q.status==='pending').length;
+  if(!queue.length){wrap.innerHTML='<div class="empty-state" style="padding:1rem"><p style="font-size:.7rem">لم يتم رفع ملفات</p></div>';cnt.classList.add('hidden');btn.disabled=true;return}
+  cnt.textContent=queue.length;cnt.classList.remove('hidden');btn.disabled=pending===0;
+  const ic={pending:'📄',processing:'⚙',done:'✓',archived:'📁',error:'✗'};
+  wrap.innerHTML=`<ul class="q-list">${queue.map(q=>`
+    <li class="q-item ${q.status}">
+      <span style="font-size:.7rem">${ic[q.status]||'📄'}</span>
+      <div><div class="q-name" title="${q.name}">${q.name}</div><div class="q-meta">${fmtSz(q.size)}${q.method?' · '+q.method:''}</div></div>
+      <span class="status-pill sp-${q.status}">${ic[q.status]||'?'}</span>
+      ${q.status==='pending'?`<button class="del-btn" onclick="removeFile('${q.id}')">✕</button>`:'<span style="width:16px"></span>'}
+    </li>`).join('')}</ul>`;
+}
+function removeFile(id){queue=queue.filter(q=>q.id!==id);renderQueue()}
+function archiveDone(){let n=0;queue.forEach(q=>{if(q.status==='done'){q.status='archived';n++}});n?toast(`أُرشف ${n} ملفات`,'success'):toast('لا يوجد','warn');renderQueue()}
+function clearPending(){const b=queue.length;queue=queue.filter(q=>q.status!=='pending');(b-queue.length)?toast('حُذفت الملفات المعلقة','success'):toast('لا يوجد','warn');renderQueue()}
+
+// ── Process (calls Flask API) ─────────────────────────────────────
+async function processAll(){
+  const pending=queue.filter(q=>q.status==='pending');
+  if(!pending.length){toast('لا توجد ملفات','warn');return}
+  document.getElementById('btn-extract').disabled=true;
+  document.getElementById('prog-wrap').classList.remove('hidden');
+  const threshold=document.getElementById('ocr-threshold').value;
+  let done=0;
+
+  for(const item of pending){
+    item.status='processing';renderQueue();
+    try{
+      const fd=new FormData();
+      fd.append('file',item.file);
+      fd.append('threshold',threshold);
+      fd.append('kw',JSON.stringify(KW));
+      const resp=await fetch('/api/extract',{method:'POST',body:fd});
+      const json=await resp.json();
+      if(json.ok){
+        results.push(json.data);
+        item.method=json.data.source;
+        item.status='done';
+        if(json.data.source==='QR') toast(`📱 QR: ${item.name}`,'success');
+        else if(json.data.source==='OCR') toast(`🖨 OCR: ${item.name}`,'success');
+      } else {
+        item.status='error';
+        toast(`خطأ: ${json.error}`,'err');
+      }
+    }catch(e){item.status='error';toast(`خطأ في الاتصال: ${item.name}`,'err')}
+    done++;
+    document.getElementById('prog-bar').style.width=Math.round(done/pending.length*100)+'%';
+    document.getElementById('prog-label').textContent=`${done}/${pending.length}`;
+    renderQueue();
+  }
+  setTimeout(()=>document.getElementById('prog-wrap').classList.add('hidden'),1500);
+  renderResults();updateStats();
+  document.getElementById('btn-extract').disabled=false;
+  toast(`✅ تم استخراج ${done} فاتورة`,'success');
+}
+
+// ── Render results ────────────────────────────────────────────────
+function renderResults(){
+  if(!results.length)return;
+  document.getElementById('empty-state').classList.add('hidden');
+  document.getElementById('result-table').classList.remove('hidden');
+  document.getElementById('result-badge').textContent=results.length+' فاتورة';
+  document.getElementById('result-badge').classList.remove('hidden');
+  document.getElementById('btn-sheets').disabled=!sheetId||!saJson;
+  const sb=s=>s==='QR'?'<span class="badge b-qr">QR</span>':s==='OCR'?'<span class="badge b-ocr">OCR</span>':'<span class="badge" style="background:var(--phl);color:var(--primary);font-size:.6rem">نص</span>';
+  document.getElementById('result-tbody').innerHTML=results.map((r,i)=>`
+    <tr class="${r.source==='QR'?'from-qr':r.source==='OCR'?'from-ocr':''}">
+      <td class="row-n">${i+1}</td>
+      <td>${sb(r.source)}</td>
+      <td><div class="cell-edit" contenteditable data-i="${i}" data-f="invoice_num">${r.invoice_num||''}</div></td>
+      <td><div class="cell-edit" contenteditable data-i="${i}" data-f="supplier">${r.supplier||''}</div></td>
+      <td><div class="cell-edit" contenteditable data-i="${i}" data-f="vat">${r.vat||''}</div></td>
+      <td><div class="cell-edit" contenteditable data-i="${i}" data-f="date">${r.date||''}</div></td>
+      <td><div class="cell-edit" contenteditable data-i="${i}" data-f="desc" style="min-width:110px">${r.desc||''}</div></td>
+      <td class="num-cell"><div class="cell-edit" contenteditable data-i="${i}" data-f="subtotal">${r.subtotal||''}</div></td>
+      <td class="num-cell" style="color:var(--warn)"><div class="cell-edit" contenteditable data-i="${i}" data-f="vat_amt">${r.vat_amt||''}</div></td>
+      <td class="num-cell" style="color:var(--success)"><div class="cell-edit" contenteditable data-i="${i}" data-f="total">${r.total||''}</div></td>
+      <td><div class="cell-edit" contenteditable data-i="${i}" data-f="currency">${r.currency||'SAR'}</div></td>
+      <td><span class="badge ${r.complete?'b-ok':'b-warn'}">${r.complete?'✓':'تحقق'}</span></td>
+      <td><button class="del-btn" onclick="delResult(${i})">✕</button></td>
+    </tr>`).join('');
+  const totS=results.reduce((a,r)=>a+(parseFloat(r.subtotal)||0),0);
+  const totV=results.reduce((a,r)=>a+(parseFloat(r.vat_amt)||0),0);
+  const totT=results.reduce((a,r)=>a+(parseFloat(r.total)||0),0);
+  document.getElementById('result-tfoot').innerHTML=`<tr><td colspan="7" style="text-align:right;padding:.35rem .65rem;font-size:.7rem">الإجمالي</td>
+    <td class="num-cell">${fmt(totS)}</td><td class="num-cell" style="color:var(--warn)">${fmt(totV)}</td>
+    <td class="num-cell" style="color:var(--success)">${fmt(totT)}</td><td colspan="3"></td></tr>`;
+  document.querySelectorAll('[contenteditable]').forEach(el=>{
+    el.addEventListener('input',()=>{results[el.dataset.i][el.dataset.f]=el.textContent.trim();updateStats()});
+  });
+}
+function delResult(i){results.splice(i,1);renderResults();updateStats()}
+function clearResults(){results=[];document.getElementById('empty-state').classList.remove('hidden');document.getElementById('result-table').classList.add('hidden');document.getElementById('result-badge').classList.add('hidden');document.getElementById('btn-sheets').disabled=true;updateStats()}
+function updateStats(){
+  document.getElementById('st-total').textContent=results.length;
+  document.getElementById('st-qr').textContent=results.filter(r=>r.source==='QR').length;
+  document.getElementById('st-txt').textContent=results.filter(r=>r.source==='نص').length;
+  document.getElementById('st-ocr').textContent=results.filter(r=>r.source==='OCR').length;
+  document.getElementById('st-sub').textContent=fmt(results.reduce((a,r)=>a+(parseFloat(r.subtotal)||0),0));
+  document.getElementById('st-vat').textContent=fmt(results.reduce((a,r)=>a+(parseFloat(r.vat_amt)||0),0));
+  document.getElementById('st-tot').textContent=fmt(results.reduce((a,r)=>a+(parseFloat(r.total)||0),0));
+}
+function fmt(n){return Number(n).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+// ── CSV ───────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!results.length){toast('لا بيانات','warn');return}
+  const hdr='المصدر,رقم الفاتورة,اسم المورد,الرقم الضريبي,التاريخ,البيان,قبل الضريبة,الضريبة,بعد الضريبة,العملة,اسم الملف';
+  const rows=results.map(r=>[r.source,r.invoice_num,r.supplier,r.vat,r.date,r.desc,r.subtotal,r.vat_amt,r.total,r.currency,r.filename].map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(','));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+hdr+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='فواتير_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('تم تحميل CSV','success');
+}
+
+// ── Send to Sheets ────────────────────────────────────────────────
+async function sendToSheets(){
+  if(!results.length){toast('لا بيانات','warn');return}
+  if(!sheetId||!saJson){toast('أعدّ إعدادات Sheets أولاً','err');showSheets();return}
+  const btn=document.getElementById('btn-sheets');btn.disabled=true;btn.textContent='جاري الإرسال...';
+  try{
+    const resp=await fetch('/api/send-to-sheets',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({rows:results,sheetId,sheetName,credentials:saJson})
+    });
+    const json=await resp.json();
+    json.ok?toast(`✅ تم إرسال ${json.added} فاتورة!`,'success'):toast('خطأ: '+json.error,'err');
+  }catch(e){toast('خطأ في الاتصال','err')}
+  btn.disabled=false;btn.textContent='↑ Sheets';
+}
+
+// ── Sheets Modal ──────────────────────────────────────────────────
+function showSheets(){document.getElementById('sheets-modal').classList.remove('hidden')}
+function closeSheets(){document.getElementById('sheets-modal').classList.add('hidden')}
+function saveSheets(){
+  sheetId=document.getElementById('sheet-id').value.trim();
+  sheetName=document.getElementById('sheet-name').value.trim()||'فواتير الموردين';
+  saJson=document.getElementById('sa-json').value.trim();
+  localStorage.setItem('sheetId',sheetId);localStorage.setItem('sheetName',sheetName);localStorage.setItem('saJson',saJson);
+  if(results.length)document.getElementById('btn-sheets').disabled=!sheetId||!saJson;
+  closeSheets();toast('تم حفظ إعدادات Sheets ✓','success');
+}
+
+// ── Keywords ──────────────────────────────────────────────────────
+function showKw(){renderKwSections();document.getElementById('kw-modal').classList.remove('hidden')}
+function closeKw(){document.getElementById('kw-modal').classList.add('hidden')}
+function renderKwSections(){
+  document.getElementById('kw-sections').innerHTML=Object.entries(KW).map(([key,cfg])=>`
+    <div class="kw-section">
+      <div class="kw-section-title">${cfg.label}</div>
+      <div class="kw-tags">${cfg.words.map((w,i)=>`<span class="kw-tag">${w}<button onclick="removeKw('${key}',${i})">✕</button></span>`).join('')}</div>
+      <div class="kw-add-row"><input type="text" id="kw-${key}" placeholder="كلمة جديدة..." onkeydown="if(event.key==='Enter'){addKw('${key}');event.preventDefault()}"><button class="btn btn-primary btn-sm" onclick="addKw('${key}')">+</button></div>
+    </div><hr style="border:none;border-top:1px solid var(--div);margin:.45rem 0">`).join('');
+}
+function addKw(k){const i=document.getElementById('kw-'+k),v=i.value.trim();if(!v)return;if(KW[k].words.includes(v)){toast('موجودة','warn');return}KW[k].words.push(v);i.value='';renderKwSections();toast(`أضيف "${v}"`,'success')}
+function removeKw(k,i){KW[k].words.splice(i,1);renderKwSections()}
+function saveKw(){localStorage.setItem('kw',JSON.stringify(KW));closeKw();toast('حُفظت كلمات البحث ✓','success')}
+function resetKw(){if(!confirm('استعادة الافتراضي؟'))return;KW=JSON.parse(JSON.stringify(DEFAULT_KW));localStorage.removeItem('kw');renderKwSections();toast('تمت الاستعادة','success')}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function toast(msg,type='info'){
+  const w=document.getElementById('toast-wrap'),d=document.createElement('div');
+  d.className=`toast t-${type}`;
+  d.innerHTML=`<span>${{info:'ℹ',success:'✅',warn:'⚠',err:'❌'}[type]||'ℹ'}</span><span>${msg}</span>`;
+  w.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .4s'},3600);setTimeout(()=>d.remove(),4100);
+}
+</script>
+</body>
+</html>
