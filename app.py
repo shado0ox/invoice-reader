@@ -3,6 +3,8 @@
 """
 app.py — Flask Invoice Extractor API v5
 """
+from dotenv import load_dotenv  # ← أضف
+load_dotenv()                   # ← أضف
 
 import os
 import json
